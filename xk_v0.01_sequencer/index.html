@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Modular Polyphonic Workspace</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; max-width: 900px; color: #333; }
+        #navigation { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
+        .workspace-view { padding: 15px; background: #fafafa; border-radius: 6px; border: 1px solid #ddd; }
+        .voice-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; background: #fff; padding: 10px; border: 1px solid #eaeaea; border-radius: 4px; }
+        .voice-row input[type="text"] { flex-grow: 1; padding: 6px; font-family: monospace; }
+        .controls { margin-bottom: 15px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+
+    <div id="navigation">
+        <label><input type="radio" name="view" value="splash" checked> Splash Screen</label>
+        <label><input type="radio" name="view" value="sequencer"> 4-Voice Sequencer</label>
+    </div>
+
+    <!-- The plug-and-play workspace zone -->
+    <div id="workspace"></div>
+
+    <!-- Initialize the Global Namespace -->
+    <script>
+        window.App = {}; 
+        window.App.currentMasterVolumeSetting = 0.7; 
+        console.log("App Namespace Initialized.");
+    </script>
+
+    <!-- Core Architecture Scripts Loaded in Order -->
+    <script src="audio.engine.js"></script>
+    <script src="sequencer.grammar.parser.js"></script>
+    <script src="sequencer.functionality.js"></script>
+    <script src="sequencer.dom.js"></script>
+
+    <!-- App Orchestrator Router -->
+    <script>
+        window.onload = () => {
+            console.log("Window Onload Triggered - All scripts confirmed ready.");
+            const workspace = document.getElementById("workspace");
+
+            let appState = {
+                currentView: 'splash',
+                sequencerState: App.SequencerFunc.createInitialState()
+            };
+
+            function render() {
+                console.log("Main Router render() called. Current view:", appState.currentView);
+                workspace.innerHTML = "";
+
+                if (appState.currentView === 'splash') {
+                    const splashEl = document.createElement('div');
+                    splashEl.innerHTML = `<h1>Project Portal</h1><p>Select a workspace tool above to begin computing sounds.</p>`;
+                    workspace.appendChild(splashEl);
+                } 
+                else if (appState.currentView === 'sequencer') {
+                    const sequencerUI = App.SequencerDOM.build(appState.sequencerState, {
+                        onStateChange: (updatedState) => {
+                            console.log("Router Callback: onStateChange triggered.");
+                            appState.sequencerState = updatedState;
+                        },
+                        onPlayToggle: () => {
+                            console.log("Router Callback: onPlayToggle triggered.");
+                            appState.sequencerState = App.SequencerFunc.toggleEngine(appState.sequencerState);
+                            render(); 
+                        }
+                    });
+                    workspace.appendChild(sequencerUI);
+                }
+            }
+
+            document.querySelectorAll('input[name="view"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    console.log("Navigation changed to:", e.target.value);
+                    if (appState.sequencerState.isPlaying) {
+                        console.log("Sequencer was playing. Force-stopping audio loop before switching views.");
+                        appState.sequencerState = App.SequencerFunc.toggleEngine(appState.sequencerState);
+                    }
+                    appState.currentView = e.target.value;
+                    render();
+                });
+            });
+
+            render(); 
+        };
+        console.log("SCRIPT SUCCESS: index.html orchestration script loaded successfully.");
+    </script>
+</body>
+</html>
